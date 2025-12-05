@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LibertITGAM</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: {
+          900: '#0f172a',
+          800: '#1e293b',
+          600: '#2563eb',
+          500: '#3b82f6',
+          100: '#dbeafe',
+        }
+      }
+    }
+  }
+}
+</script>
+
+<style>
+body { 
+  background-color: #f8fafc; 
+  font-family: sans-serif; 
+  margin: 0; 
+  padding: 0; 
+}
+
+.animate-in { 
+  animation: fadeIn 0.5s ease-out; 
+}
+
+@keyframes fadeIn { 
+  from { opacity: 0; transform: translateY(10px); } 
+  to { opacity: 1; transform: translateY(0); } 
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+</style>
+</head>
+
+<body>
+<div id="root">
+  <div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+    <div style="text-align: center;">
+      <div style="display: inline-block; animation: spin 1s linear infinite; width: 40px; height: 40px; border: 4px solid #ddd; border-top-color: #2563eb; border-radius: 50%;"></div>
+      <p style="margin-top: 16px; color: #666;">Cargando LibertITGAM...</p>
+    </div>
+  </div>
+</div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ============================================
+// CONFIGURACIÓN FIREBASE - PEGA TUS CREDENCIALES AQUÍ
+// ============================================
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAqvOxuxs_4McrgksZUxSePh_KEJ1qyVBQ",
+  authDomain: "libertitgam.firebaseapp.com",
+  projectId: "libertitgam",
+  storageBucket: "libertitgam.firebasestorage.app",
+  messagingSenderId: "357426640470",
+  appId: "1:357426640470:web:b186cd85a34a2a8a43adf7"
+};
+
+// Inicializar Firebase
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ============================================
+// SERVICIO DE DATOS
+// ============================================
+
+const DataService = {
+  // REPORTES
+  addReport: async function(report) {
+    try {
+      const docRef = await db.collection('reportes').add({
+        ...report,
+        date: firebase.firestore.FieldValue.serverTimestamp(),
+        status: 'Pendiente'
+      });
+      return { success: true, id: docRef.id };
+    } catch (error) {
+      console.error('Error adding report:', error);
+      throw error;
+    }
+  },
+
+  getReports: function(callback) {
+    return db.collection('reportes')
+      .orderBy('date', 'desc')
+      .onSnapshot((snapshot) => {
+        const reports = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          date: doc.data().date?.toDate()
+        }));
+        callback(reports);
+      });
+  },
+
+  updateStatus: async function(id, status) {
+    try {
+      await db.collection('reportes').doc(id).update({ status });
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating status:', error);
+      throw error;
+    }
+  },
+
+  // AVISOS
+  getAvisos: function(callback) {
+    return db.collection('avisos')
+      .where('active', '==', true)
+      .orderBy('date', 'desc')
+      .onSnapshot((snapshot) => {
+        const avisos = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        callback(avisos);
+      });
+  },
+
+  getAllAvisos: function(callback) {
+    return db.collection('avisos')
+      .orderBy('date', 'desc')
+      .onSnapshot((snapshot) => {
+        const avisos = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        callback(avisos);
+      });
+  },
+
+  addAviso: async function(aviso) {
+    try {
+      const docRef = await db.collection('avisos').add({
+        ...aviso,
+        date: firebase.firestore.FieldValue.serverTimestamp(),
+        active: true
+      });
+      return { success: true, id: docRef.id };
+    } catch (error) {
+      console.error('Error adding aviso:', error);
+      throw error;
+    }
+  },
+
+  updateAviso: async function(id, aviso) {
+    try {
+      await db.collection('avisos').doc(id).update(aviso);
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating aviso:', error);
+      throw error;
+    }
+  },
+
+  toggleAvisoStatus: async function(id, currentStatus) {
+    try {
+      await db.collection('avisos').doc(id).update({
+        active: !currentStatus
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('Error toggling aviso:', error);
+      throw error;
+    }
+  },
+
+  deleteAviso: async function(id) {
+    try {
+      await db.collection('avisos').doc(id).delete();
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting aviso:', error);
+      throw error;
+    }
+  }
+};
+
+// ============================================
+// COMPONENTES BÁSICOS
+// ============================================
+
+const Icon = ({ path }) => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d={path} />
+  </svg>
+);
+
+const ICONS = {
+  shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+  bell: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
+  file: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+  lock: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
+  check: "M5 13l4 4L19 7"
+};
+
+// ============================================
+// NAVBAR
+// ============================================
+
+const NavBar = ({ view, setView, menuOpen, setMenuOpen }) => (
+  <nav className="bg-brand-900 text-white shadow-lg sticky top-0 z-50">
+    <div className="max-w-6xl mx-auto px-4 h-16 flex justify-between items-center">
+      <div className="flex items-center gap-2 font-bold text-lg cursor-pointer" onClick={() => setView('home')}>
+        <div className="text-brand-500"><Icon path={ICONS.shield} /></div>
+        <span>LibertITGAM</span>
+      </div>
+      
+      <div className="hidden md:flex gap-6 text-sm font-medium">
+        <button onClick={() => setView('home')} className="hover:text-brand-100">Inicio</button>
+        <button onClick={() => setView('avisos')} className="hover:text-brand-100">Avisos</button>
+        <button onClick={() => setView('denuncia')} className="bg-brand-600 hover:bg-brand-500 px-4 py-2 rounded-full transition flex items-center gap-2">
+          <Icon path={ICONS.file} /> Reportar
+        </button>
+        <button onClick={() => setView('admin')} className="opacity-50 hover:opacity-100"><Icon path={ICONS.lock} /></button>
+      </div>
+
+      <button className="md:hidden" onClick={() => setMenuOpen(!menuOpen)}>☰</button>
+    </div>
+    {menuOpen && (
+       <div className="md:hidden bg-brand-800 p-4 flex flex-col gap-2">
+         <button onClick={() => {setView('home'); setMenuOpen(false)}} className="text-left p-2">Inicio</button>
+         <button onClick={() => {setView('denuncia'); setMenuOpen(false)}} className="text-left p-2 bg-brand-600 rounded">Reportar</button>
+         <button onClick={() => {setView('admin'); setMenuOpen(false)}} className="text-left p-2 opacity-50">Admin</button>
+       </div>
+    )}
+  </nav>
+);
+
+// ============================================
+// HOME VIEW
+// ============================================
+
+const HomeView = ({ setView }) => (
+  <div className="animate-in max-w-4xl mx-auto mt-10 px-4 text-center">
+    <h1 className="text-4xl md:text-5xl font-extrabold text-brand-900 mb-6">
+      Comunidad Segura <span className="text-brand-600">ITGAM</span>
+    </h1>
+    <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+      Plataforma oficial para la comunicación institucional y la gestión segura de reportes estudiantiles.
+    </p>
+    <div className="flex justify-center gap-4 flex-wrap">
+      <button onClick={() => setView('denuncia')} className="bg-brand-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-brand-800 transition shadow-lg">
+        Hacer Reporte
+      </button>
+      <button onClick={() => setView('avisos')} className="bg-white text-brand-900 border border-gray-300 px-8 py-3 rounded-xl font-bold hover:bg-gray-50 transition">
+        Ver Avisos
+      </button>
+    </div>
+    <div className="grid md:grid-cols-3 gap-6 mt-16 text-left">
+       <div className="bg-white p-6 rounded-lg shadow-sm border-t-4 border-brand-600">
+         <h3 className="font-bold text-lg mb-2">Anonimato</h3>
+         <p className="text-sm text-gray-500">Opción de proteger tu identidad en cualquier reporte.</p>
+       </div>
+       <div className="bg-white p-6 rounded-lg shadow-sm border-t-4 border-blue-400">
+         <h3 className="font-bold text-lg mb-2">Oficial</h3>
+         <p className="text-sm text-gray-500">Canal directo con las autoridades del plantel.</p>
+       </div>
+       <div className="bg-white p-6 rounded-lg shadow-sm border-t-4 border-green-500">
+         <h3 className="font-bold text-lg mb-2">Seguimiento</h3>
+         <p className="text-sm text-gray-500">Monitoreo de incidencias para una mejor resolución.</p>
+       </div>
+    </div>
+  </div>
+);
+
+// ============================================
+// FORM VIEW
+// ============================================
+
+const FormView = ({ setView }) => {
+  const [formData, setFormData] = useState({ name: '', contact: '', type: 'Infraestructura', desc: '' });
+  const [isAnon, setIsAnon] = useState(true);
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSending(true);
+    
+    try {
+      await DataService.addReport({
+        ...formData,
+        isAnon
+      });
+      setSent(true);
+      setTimeout(() => {
+        setSent(false);
+        setFormData({ name: '', contact: '', type: 'Infraestructura', desc: '' });
+        setView('home');
+      }, 3000);
+    } catch (error) {
+      alert('Error al enviar reporte');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="animate-in max-w-2xl mx-auto mt-8 px-4 mb-8">
+      <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+        <div className="bg-brand-900 p-6 text-white">
+          <h2 className="text-2xl font-bold flex items-center gap-2"><Icon path={ICONS.file}/> Generar Reporte</h2>
+        </div>
+        
+        {sent ? (
+          <div className="p-12 text-center">
+            <div className="text-green-500 mx-auto w-16 h-16 flex items-center justify-center bg-green-100 rounded-full mb-4">
+              <Icon path={ICONS.check} />
+            </div>
+            <h3 className="text-xl font-bold text-gray-800">Reporte Enviado</h3>
+            <p className="text-gray-500">Gracias por tu colaboración.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <div className="bg-blue-50 p-4 rounded-lg flex justify-between items-center">
+               <div>
+                 <span className="font-bold text-brand-900 text-sm block">Modo: {isAnon ? 'Anónimo' : 'Identificado'}</span>
+                 <span className="text-xs text-gray-500">{isAnon ? 'No se guardan datos personales' : 'Se guardan datos de contacto'}</span>
+               </div>
+               <button type="button" onClick={() => setIsAnon(!isAnon)} className="text-xs font-bold text-brand-600 underline">Cambiar</button>
+            </div>
+
+            {!isAnon && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input 
+                  required 
+                  className="border p-3 rounded w-full" 
+                  placeholder="Nombre" 
+                  value={formData.name} 
+                  onChange={e => setFormData({...formData, name: e.target.value})} 
+                />
+                <input 
+                  required 
+                  className="border p-3 rounded w-full" 
+                  placeholder="Contacto" 
+                  value={formData.contact} 
+                  onChange={e => setFormData({...formData, contact: e.target.value})} 
+                />
+              </div>
+            )}
+            
+            <select 
+              className="border p-3 rounded w-full bg-white" 
+              value={formData.type} 
+              onChange={e => setFormData({...formData, type: e.target.value})}
+            >
+              <option>Infraestructura</option>
+              <option>Seguridad</option>
+              <option>Académico</option>
+              <option>Acoso</option>
+              <option>Otro</option>
+            </select>
+
+            <textarea 
+              required 
+              rows="4" 
+              className="border p-3 rounded w-full" 
+              placeholder="Descripción detallada..." 
+              value={formData.desc} 
+              onChange={e => setFormData({...formData, desc: e.target.value})}
+            />
+
+            <button disabled={sending} className="w-full bg-brand-600 text-white py-3 rounded-lg font-bold hover:bg-brand-500 disabled:bg-gray-400 disabled:cursor-not-allowed">
+              {sending ? 'Enviando...' : 'Enviar Reporte'}
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// AVISOS VIEW
+// ============================================
+
+const AvisosView = () => {
+  const [avisos, setAvisos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = DataService.getAvisos((data) => {
+      setAvisos(data);
+      setLoading(false);
+    });
+    return () => unsubscribe && unsubscribe();
+  }, []);
+
+
+  const typeColors = {
+    'General': 'bg-blue-500',
+    'Sistemas': 'bg-purple-500',
+    'Comunidad': 'bg-green-500',
+    'Académico': 'bg-yellow-500',
+    'Urgente': 'bg-red-500'
+  };
+
+  if (loading) {
+    return (
+      <div className="animate-in max-w-5xl mx-auto mt-8 px-4 mb-8">
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+          <p className="mt-4 text-gray-500">Cargando avisos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="animate-in max-w-5xl mx-auto mt-8 px-4 mb-8">
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-brand-900 mb-2">Avisos Oficiales</h2>
+        <p className="text-gray-600">Mantente informado sobre las novedades del instituto</p>
+      </div>
+      
+      {aviso.imageUrl && (
+      <div className="h-48 overflow-hidden bg-gray-100">
+        <img 
+          src={aviso.imageUrl} 
+          alt={aviso.title}
+          className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+          onError={(e) => {
+          e.target.style.display = 'none';
+          e.target.parentElement.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400"><svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg></div>';
+                  }}
+              />
+          </div>
+      )}
+
+      {avisos.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+          <div className="text-gray-400 mb-4">
+            <Icon path={ICONS.bell} />
+          </div>
+          <p className="text-gray-500">No hay avisos disponibles en este momento</p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {avisos.map(aviso => (
+            <div key={aviso.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+              {aviso.imageUrl && (
+                <div className="h-48 overflow-hidden bg-gray-100">
+                  <img 
+                    src={aviso.imageUrl} 
+                    alt={aviso.title}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    onError={(e) => e.target.style.display = 'none'}
+                  />
+                </div>
+              )}
+              
+              <div className="p-5">
+                <div className="flex justify-between items-start mb-3">
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full text-white ${typeColors[aviso.type] || 'bg-gray-500'}`}>
+                    {aviso.type}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {aviso.date ? new Date(aviso.date.seconds * 1000).toLocaleDateString('es-MX') : 'Reciente'}
+                  </span>
+                </div>
+                
+                <h3 className="font-bold text-lg text-gray-800 mb-2 line-clamp-2">
+                  {aviso.title}
+                </h3>
+                
+                <p className="text-gray-600 text-sm line-clamp-3">
+                  {aviso.body}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================
+// ADMIN VIEW (código continúa en siguiente mensaje por límite de caracteres)
+// ============================================
+
+const AdminView = () => {
+  const [adminPass, setAdminPass] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [activeTab, setActiveTab] = useState('reportes');
+  const [reports, setReports] = useState([]);
+  const [avisos, setAvisos] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const [showAvisoForm, setShowAvisoForm] = useState(false);
+  const [editingAviso, setEditingAviso] = useState(null);
+  const [avisoForm, setAvisoForm] = useState({
+    title: '',
+    type: 'General',
+    body: '',
+    imageUrl: ''
+  });
+
+  useEffect(() => {
+    let unsubscribe;
+    if (isAdmin) {
+      setLoading(true);
+      if (activeTab === 'reportes') {
+        unsubscribe = DataService.getReports((data) => {
+          setReports(data);
+          setLoading(false);
+        });
+      } else if (activeTab === 'avisos') {
+        unsubscribe = DataService.getAllAvisos((data) => {
+          setAvisos(data);
+          setLoading(false);
+        });
+      }
+    }
+    return () => unsubscribe && unsubscribe();
+  }, [isAdmin, activeTab]);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (adminPass === 'admin123') {
+      setIsAdmin(true);
+    } else {
+      alert('Contraseña incorrecta');
+    }
+  };
+
+  const handleResolve = async (id) => {
+    try {
+      await DataService.updateStatus(id, 'Resuelto');
+    } catch (error) {
+      alert('Error al actualizar');
+    }
+  };
+
+  const handleToggleAviso = async (id, currentStatus) => {
+    try {
+      await DataService.toggleAvisoStatus(id, currentStatus);
+    } catch (error) {
+      alert('Error al cambiar estado');
+    }
+  };
+
+  const handleDeleteAviso = async (id) => {
+    if (confirm('¿Seguro que deseas eliminar este aviso?')) {
+      try {
+        await DataService.deleteAviso(id);
+      } catch (error) {
+        alert('Error al eliminar');
+      }
+    }
+  };
+
+  const handleSaveAviso = async (e) => {
+    e.preventDefault();
+    
+    try {
+      if (editingAviso) {
+        await DataService.updateAviso(editingAviso.id, avisoForm);
+      } else {
+        await DataService.addAviso(avisoForm);
+      }
+      resetAvisoForm();
+    } catch (error) {
+      alert('Error al guardar aviso');
+    }
+  };
+
+  const resetAvisoForm = () => {
+    setAvisoForm({ title: '', type: 'General', body: '', imageUrl: '' });
+    setEditingAviso(null);
+    setShowAvisoForm(false);
+  };
+
+  const startEdit = (aviso) => {
+    setEditingAviso(aviso);
+    setAvisoForm({
+      title: aviso.title,
+      type: aviso.type,
+      body: aviso.body,
+      imageUrl: aviso.imageUrl || ''
+    });
+    setShowAvisoForm(true);
+  };
+
+  if (!isAdmin) {
+    return (
+      <div className="animate-in max-w-sm mx-auto mt-20 px-4 mb-8">
+        <div className="bg-white p-8 rounded-xl shadow-lg text-center">
+          <div className="bg-brand-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="text-brand-600"><Icon path={ICONS.lock} /></div>
+          </div>
+          <h2 className="font-bold text-2xl mb-2 text-brand-900">Panel de Administración</h2>
+          <p className="text-gray-500 text-sm mb-6">Solo personal autorizado</p>
+          <form onSubmit={handleLogin}>
+            <input 
+              type="password" 
+              placeholder="Contraseña" 
+              className="border border-gray-300 p-3 rounded-lg w-full mb-4 focus:outline-none focus:border-brand-500" 
+              value={adminPass} 
+              onChange={e => setAdminPass(e.target.value)}
+              required
+            />
+            <button type="submit" className="w-full bg-brand-900 text-white py-3 rounded-lg font-bold hover:bg-brand-800 transition">
+              Iniciar Sesión
+            </button>
+            <p className="text-xs text-gray-400 mt-3">Clave demo: admin123</p>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="animate-in max-w-6xl mx-auto mt-8 px-4 mb-8">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-3xl font-bold text-brand-900">Panel de Administración</h2>
+          <p className="text-gray-500 text-sm mt-1">Gestiona reportes y avisos del sistema</p>
+        </div>
+        <button 
+          onClick={() => {
+            setIsAdmin(false);
+            setAdminPass('');
+          }} 
+          className="text-red-600 text-sm font-semibold hover:text-red-800 flex items-center gap-2 bg-red-50 px-4 py-2 rounded-lg"
+        >
+          Cerrar Sesión
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm mb-6 p-1 flex gap-2">
+        <button
+          onClick={() => setActiveTab('reportes')}
+          className={`flex-1 py-3 px-6 rounded-md font-semibold transition ${
+            activeTab === 'reportes' 
+              ? 'bg-brand-900 text-white' 
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          📋 Reportes
+        </button>
+        <button
+          onClick={() => setActiveTab('avisos')}
+          className={`flex-1 py-3 px-6 rounded-md font-semibold transition ${
+            activeTab === 'avisos' 
+              ? 'bg-brand-900 text-white' 
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          📢 Avisos
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600 mb-4"></div>
+          <p className="text-gray-500">Cargando...</p>
+        </div>
+      ) : (
+        <>
+          {activeTab === 'reportes' && (
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-700 font-bold border-b">
+                    <tr>
+                      <th className="p-4 text-left">Fecha</th>
+                      <th className="p-4 text-left">Tipo</th>
+                      <th className="p-4 text-left">Descripción</th>
+                      <th className="p-4 text-left">Estado</th>
+                      <th className="p-4 text-left">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reports.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="p-12 text-center text-gray-400">
+                          No hay reportes registrados
+                        </td>
+                      </tr>
+                    ) : (
+                      reports.map(r => (
+                        <tr key={r.id} className="border-b hover:bg-gray-50">
+                          <td className="p-4 whitespace-nowrap">
+                            {r.date ? new Date(r.date).toLocaleDateString('es-MX') : 'N/A'}
+                          </td>
+                          <td className="p-4">
+                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">
+                              {r.type}
+                            </span>
+                          </td>
+                          <td className="p-4 max-w-md truncate">{r.desc}</td>
+                          <td className="p-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              r.status === 'Resuelto' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {r.status || 'Pendiente'}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            {r.status !== 'Resuelto' && (
+                              <button 
+                                onClick={() => handleResolve(r.id)} 
+                                className="text-green-600 font-bold hover:text-green-800 text-sm"
+                              >
+                                ✓ Resolver
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'avisos' && (
+            <div>
+              <div className="mb-4">
+                <button
+                  onClick={() => setShowAvisoForm(!showAvisoForm)}
+                  className="bg-brand-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-brand-500 flex items-center gap-2"
+                >
+                  <span className="text-xl">+</span> 
+                  {showAvisoForm ? 'Cancelar' : 'Crear Nuevo Aviso'}
+                </button>
+              </div>
+
+              {showAvisoForm && (
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                  <h3 className="text-xl font-bold text-brand-900 mb-4">
+                    {editingAviso ? 'Editar Aviso' : 'Nuevo Aviso'}
+                  </h3>
+                  
+                  <form onSubmit={handleSaveAviso} className="space-y-4">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Título del aviso"
+                      className="border p-3 rounded-lg w-full"
+                      value={avisoForm.title}
+                      onChange={e => setAvisoForm({...avisoForm, title: e.target.value})}
+                    />
+
+                    <select
+                      className="border p-3 rounded-lg w-full bg-white"
+                      value={avisoForm.type}
+                      onChange={e => setAvisoForm({...avisoForm, type: e.target.value})}
+                    >
+                      <option>General</option>
+                      <option>Sistemas</option>
+                      <option>Comunidad</option>
+                      <option>Académico</option>
+                      <option>Urgente</option>
+                    </select>
+
+                    <textarea
+                      required
+                      rows="3"
+                      placeholder="Descripción"
+                      className="border p-3 rounded-lg w-full"
+                      value={avisoForm.body}
+                      onChange={e => setAvisoForm({...avisoForm, body: e.target.value})}
+                    />
+
+                    <div>
+                      <input
+                        type="url"
+                        placeholder="URL de imagen (Google Drive)"
+                        className="border p-3 rounded-lg w-full"
+                        value={avisoForm.imageUrl}
+                        onChange={e => setAvisoForm({...avisoForm, imageUrl: e.target.value})}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        💡 Formato: https://drive.google.com/uc?id=TU_ID
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="submit"
+                        className="bg-brand-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-brand-500 flex-1"
+                      >
+                        {editingAviso ? 'Actualizar' : 'Crear'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={resetAvisoForm}
+                        className="bg-gray-200 px-6 py-3 rounded-lg font-bold hover:bg-gray-300"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {avisos.length === 0 ? (
+                  <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+                    <p className="text-gray-500">No hay avisos creados</p>
+                  </div>
+                ) : (
+                  avisos.map(aviso => (
+                    <div key={aviso.id} className="bg-white rounded-lg shadow-sm p-5">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="font-bold text-lg">{aviso.title}</h4>
+                          <span className="text-xs bg-gray-100 px-2 py-1 rounded">{aviso.type}</span>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          aviso.active ? 'bg-green-100 text-green-800' : 'bg-gray-100'
+                        }`}>
+                          {aviso.active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <p className="text-gray-600 text-sm mb-3">{aviso.body}</p>
+                      
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          onClick={() => startEdit(aviso)}
+                          className="text-blue-600 text-sm font-semibold"
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          onClick={() => handleToggleAviso(aviso.id, aviso.active)}
+                          className="text-yellow-600 text-sm font-semibold"
+                        >
+                          {aviso.active ? '🔴 Desactivar' : '🟢 Activar'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAviso(aviso.id)}
+                          className="text-red-600 text-sm font-semibold"
+                        >
+                          🗑️ Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+// ============================================
+// APP PRINCIPAL
+// ============================================
+
+function App() {
+  const [view, setView] = useState('home');
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <NavBar view={view} setView={setView} menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
+      <div className="flex-grow pb-10">
+        {view === 'home' && <HomeView setView={setView} />}
+        {view === 'denuncia' && <FormView setView={setView} />}
+        {view === 'avisos' && <AvisosView />}
+        {view === 'admin' && <AdminView />}
+      </div>
+      <footer className="text-center py-6 text-gray-400 text-xs bg-brand-900 text-white">
+        © 2025 LibertITGAM | Versión Segura
+      </footer>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+
+</body>
+</html>
