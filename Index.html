@@ -243,12 +243,15 @@ const ICONS = {
 const NavBar = ({ view, setView, menuOpen, setMenuOpen }) => (
   <nav className="bg-brand-900 text-white shadow-lg sticky top-0 z-50">
     <div className="max-w-6xl mx-auto px-4 h-16 flex justify-between items-center">
-      <div className="flex items-center gap-2 font-bold text-lg cursor-pointer" onClick={() => setView('home')}>
-      <img 
-        src="https://mega.nz/file/eP4ClKZA#k6Kovaycn9XKGtwoHtmh7Ym02tbVwGSFFBvV2jCaUJw" 
+      <div className="flex items-center gap-3 font-bold text-lg cursor-pointer" onClick={() => setView('home')}>
+        <img 
+          src="./logo.ico" 
           alt="Logo ITGAM" 
-        className="h-10 w-10 object-contain"
-      />
+          className="h-10 w-10 object-contain bg-white rounded p-1"
+          onError={(e) => {
+            e.target.style.display = 'none';
+          }}
+        />
         <span>LibertITGAM</span>
       </div>
       
@@ -272,6 +275,7 @@ const NavBar = ({ view, setView, menuOpen, setMenuOpen }) => (
     )}
   </nav>
 );
+
 
 // ============================================
 // HOME VIEW
