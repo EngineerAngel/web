@@ -903,6 +903,7 @@ Entre más detalles proporciones, mejor podremos ayudarte."
 const AvisosView = () => {
   const [avisos, setAvisos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedAviso, setSelectedAviso] = useState(null);
 
   useEffect(() => {
     const unsubscribe = DataService.getAvisos((data) => {
@@ -949,18 +950,22 @@ const AvisosView = () => {
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           {avisos.map(aviso => (
-            <div key={aviso.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+            <div
+              key={aviso.id}
+              onClick={() => setSelectedAviso(aviso)}
+              className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all overflow-hidden cursor-pointer hover:scale-105 transform duration-200"
+            >
               {aviso.imageUrl && (
                 <div className="h-48 overflow-hidden bg-gray-100">
-                  <img 
-                    src={aviso.imageUrl} 
+                  <img
+                    src={aviso.imageUrl}
                     alt={aviso.title}
-                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-cover"
                     onError={(e) => e.target.style.display = 'none'}
                   />
                 </div>
               )}
-              
+
               <div className="p-5">
                 <div className="flex justify-between items-start mb-3">
                   <span className={`text-xs font-bold px-3 py-1 rounded-full text-white ${typeColors[aviso.type] || 'bg-gray-500'}`}>
@@ -970,17 +975,124 @@ const AvisosView = () => {
                     {aviso.date ? new Date(aviso.date.seconds * 1000).toLocaleDateString('es-MX') : 'Reciente'}
                   </span>
                 </div>
-                
+
                 <h3 className="font-bold text-lg text-gray-800 mb-2 line-clamp-2">
                   {aviso.title}
                 </h3>
-                
+
                 <p className="text-gray-600 text-sm line-clamp-3">
                   {aviso.body}
                 </p>
+
+                <div className="mt-3 text-brand-600 text-sm font-semibold flex items-center gap-1">
+                  Ver más →
+                </div>
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal para ver aviso completo */}
+      {selectedAviso && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 animate-in"
+          onClick={() => setSelectedAviso(null)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header del modal */}
+            <div className={`${typeColors[selectedAviso.type] || 'bg-gray-500'} text-white p-6 sticky top-0 z-10`}>
+              <div className="flex justify-between items-start">
+                <div className="flex-1">
+                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-white bg-opacity-30 inline-block mb-3">
+                    {selectedAviso.type}
+                  </span>
+                  <h2 className="text-2xl font-bold mb-2">{selectedAviso.title}</h2>
+                  <p className="text-sm opacity-90">
+                    {selectedAviso.date ? new Date(selectedAviso.date.seconds * 1000).toLocaleDateString('es-MX', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    }) : 'Reciente'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedAviso(null)}
+                  className="text-white hover:bg-white hover:bg-opacity-20 w-10 h-10 rounded-full flex items-center justify-center transition text-2xl font-bold"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            {/* Imagen principal */}
+            {selectedAviso.imageUrl && (
+              <div className="w-full bg-gray-100">
+                <img
+                  src={selectedAviso.imageUrl}
+                  alt={selectedAviso.title}
+                  className="w-full max-h-96 object-contain"
+                  onError={(e) => e.target.style.display = 'none'}
+                />
+              </div>
+            )}
+
+            {/* Contenido del modal */}
+            <div className="p-6">
+              {/* Descripción con links clickeables */}
+              <div className="text-gray-800 text-base leading-relaxed mb-6 whitespace-pre-wrap">
+                {selectedAviso.body.split(/(https?:\/\/[^\s]+)/g).map((part, index) => {
+                  if (part.match(/^https?:\/\//)) {
+                    return (
+                      <a
+                        key={index}
+                        href={part}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-brand-600 hover:text-brand-800 underline font-semibold break-all"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {part}
+                      </a>
+                    );
+                  }
+                  return <span key={index}>{part}</span>;
+                })}
+              </div>
+
+              {/* Embed de Facebook si hay URL de Facebook */}
+              {selectedAviso.facebookUrl && (
+                <div className="mb-6">
+                  <h3 className="font-bold text-lg mb-3 text-gray-800 flex items-center gap-2">
+                    📘 Publicación de Facebook
+                  </h3>
+                  <div className="border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                    <iframe
+                      src={`https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(selectedAviso.facebookUrl)}&width=500&show_text=true&height=500`}
+                      width="100%"
+                      height="500"
+                      style={{ border: 'none', overflow: 'hidden' }}
+                      scrolling="no"
+                      frameBorder="0"
+                      allowFullScreen={true}
+                      allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                    ></iframe>
+                  </div>
+                </div>
+              )}
+
+              {/* Botón para cerrar */}
+              <button
+                onClick={() => setSelectedAviso(null)}
+                className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 rounded-xl transition"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -1005,7 +1117,8 @@ const AdminView = () => {
     title: '',
     type: 'General',
     body: '',
-    imageUrl: ''
+    imageUrl: '',
+    facebookUrl: ''
   });
 
   useEffect(() => {
@@ -1078,7 +1191,7 @@ const AdminView = () => {
   };
 
   const resetAvisoForm = () => {
-    setAvisoForm({ title: '', type: 'General', body: '', imageUrl: '' });
+    setAvisoForm({ title: '', type: 'General', body: '', imageUrl: '', facebookUrl: '' });
     setEditingAviso(null);
     setShowAvisoForm(false);
   };
@@ -1089,7 +1202,8 @@ const AdminView = () => {
       title: aviso.title,
       type: aviso.type,
       body: aviso.body,
-      imageUrl: aviso.imageUrl || ''
+      imageUrl: aviso.imageUrl || '',
+      facebookUrl: aviso.facebookUrl || ''
     });
     setShowAvisoForm(true);
   };
@@ -1289,6 +1403,19 @@ const AdminView = () => {
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         💡 Formato: https://drive.google.com/uc?id=TU_ID
+                      </p>
+                    </div>
+
+                    <div>
+                      <input
+                        type="url"
+                        placeholder="URL de publicación de Facebook (opcional)"
+                        className="border p-3 rounded-lg w-full"
+                        value={avisoForm.facebookUrl}
+                        onChange={e => setAvisoForm({...avisoForm, facebookUrl: e.target.value})}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        📘 Ejemplo: https://www.facebook.com/permalink.php?story_fbid=123&id=456
                       </p>
                     </div>
 
