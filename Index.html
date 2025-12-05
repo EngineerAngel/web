@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LibertITGAM</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        brand: {
+          900: '#0f172a',
+          800: '#1e293b',
+          600: '#2563eb',
+          500: '#3b82f6',
+          100: '#dbeafe',
+        }
+      }
+    }
+  }
+}
+</script>
+
+<style>
+body { 
+  background-color: #f8fafc; 
+  font-family: sans-serif; 
+  margin: 0; 
+  padding: 0; 
+}
+
+.animate-in { 
+  animation: fadeIn 0.5s ease-out; 
+}
+
+@keyframes fadeIn { 
+  from { opacity: 0; transform: translateY(10px); } 
+  to { opacity: 1; transform: translateY(0); } 
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+</style>
+</head>
+
+<body>
+<div id="root">
+  <div style="display: flex; justify-content: center; align-items: center; height: 100vh;">
+    <div style="text-align: center;">
+      <div style="display: inline-block; animation: spin 1s linear infinite; width: 40px; height: 40px; border: 4px solid #ddd; border-top-color: #2563eb; border-radius: 50%;"></div>
+      <p style="margin-top: 16px; color: #666;">Cargando LibertITGAM...</p>
+    </div>
+  </div>
+</div>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ============================================
+// CONFIGURACIÓN FIREBASE - PEGA TUS CREDENCIALES AQUÍ
+// ============================================
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAqvOxuxs_4McrgksZUxSePh_KEJ1qyVBQ",
+  authDomain: "libertitgam.firebaseapp.com",
+  projectId: "libertitgam",
+  storageBucket: "libertitgam.firebasestorage.app",
+  messagingSenderId: "357426640470",
+  appId: "1:357426640470:web:b186cd85a34a2a8a43adf7"
+};
+
+// Inicializar Firebase
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ============================================
+// SERVICIO DE DATOS
+// ============================================
+
+const DataService = {
+  // REPORTES
+  addReport: async function(report) {
+    try {
+      const docRef = await db.collection('reportes').add({
+        ...report,
+        date: firebase.firestore.FieldValue.serverTimestamp(),
+        status: 'Pendiente'
+      });
+      return { success: true, id: docRef.id };
+    } catch (error) {
+      console.error('Error adding report:', error);
+      throw error;
+    }
+  },
+
+  getReports: function(callback) {
+    return db.collection('reportes')
+      .orderBy('date', 'desc')
+      .onSnapshot((snapshot) => {
+        const reports = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          date: doc.data().date?.toDate()
+        }));
+        callback(reports);
+      });
+  },
+
+  updateStatus: async function(id, status) {
+    try {
+      await db.collection('reportes').doc(id).update({ status });
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating status:', error);
+      throw error;
+    }
+  },
+
+  // AVISOS
+  getAvisos: function(callback) {
+    return db.collection('avisos')
+      .where('active', '==', true)
+      .orderBy('date', 'desc')
+      .onSnapshot((snapshot) => {
+        const avisos = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        callback(avisos);
+      });
+  },
+
+  getAllAvisos: function(callback) {
+    return db.collection('avisos')
+      .orderBy('date', 'desc')
+      .onSnapshot((snapshot) => {
+        const avisos = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        callback(avisos);
+      });
+  },
+
+  addAviso: async function(aviso) {
+    try {
+      const docRef = await db.collection('avisos').add({
+        ...aviso,
+        date: firebase.firestore.FieldValue.serverTimestamp(),
+        active: true
+      });
+      return { success: true, id: docRef.id };
+    } catch (error) {
+      console.error('Error adding aviso:', error);
+      throw error;
+    }
+  },
+
+  updateAviso: async function(id, aviso) {
+    try {
+      await db.collection('avisos').doc(id).update(aviso);
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating aviso:', error);
+      throw error;
+    }
+  },
+
+  toggleAvisoStatus: async function(id, currentStatus) {
+    try {
+      await db.collection('avisos').doc(id).update({
+        active: !currentStatus
+      });
+      return { success: true };
+    } catch (error) {
+      console.error('Error toggling aviso:', error);
+      throw error;
+    }
+  },
+
+  deleteAviso: async function(id) {
+    try {
+      await db.collection('avisos').doc(id).delete();
+      return { success: true };
+    } catch (error) {
+      console.error('Error deleting aviso:', error);
+      throw error;
+    }
+  }
+};
+
+// ============================================
+// COMPONENTES BÁSICOS
+// ============================================
+
+const Icon = ({ path }) => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d={path} />
+  </svg>
+);
+
+const ICONS = {
+  shield: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+  bell: "M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9",
+  file: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+  lock: "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
+  check: "M5 13l4 4L19 7"
+};
+
+// ============================================
+// NAVBAR
+// ============================================
+
+const NavBar = ({ view, setView, menuOpen, setMenuOpen }) => (
+  <nav className="bg-brand-900 text-white shadow-lg sticky top-0 z-50">
+    <div className="max-w-6xl mx-auto px-4 h-16 flex justify-between items-center">
+      <div className="flex items-center gap-3 font-bold text-lg cursor-pointer" onClick={() => setView('home')}>
+        <img 
+          src="./logo.ico" 
+          alt="Logo ITGAM" 
+          className="h-10 w-10 object-contain bg-white rounded p-1"
+          onError={(e) => {
+            e.target.style.display = 'none';
+          }}
+        />
+        <span>LibertITGAM</span>
+      </div>
+      
+      <div className="hidden md:flex gap-6 text-sm font-medium">
+        <button onClick={() => setView('home')} className="hover:text-brand-100">Inicio</button>
+        <button onClick={() => setView('avisos')} className="hover:text-brand-100">Avisos</button>
+        <button onClick={() => setView('denuncia')} className="bg-brand-600 hover:bg-brand-500 px-4 py-2 rounded-full transition flex items-center gap-2">
+          <Icon path={ICONS.file} /> Reportar
+        </button>
+        <button onClick={() => setView('admin')} className="opacity-50 hover:opacity-100"><Icon path={ICONS.lock} /></button>
+      </div>
+
+      <button className="md:hidden" onClick={() => setMenuOpen(!menuOpen)}>☰</button>
+    </div>
+    {menuOpen && (
+       <div className="md:hidden bg-brand-800 p-4 flex flex-col gap-2">
+         <button onClick={() => {setView('home'); setMenuOpen(false)}} className="text-left p-2">Inicio</button>
+         <button onClick={() => {setView('denuncia'); setMenuOpen(false)}} className="text-left p-2 bg-brand-600 rounded">Reportar</button>
+         <button onClick={() => {setView('admin'); setMenuOpen(false)}} className="text-left p-2 opacity-50">Admin</button>
+       </div>
+    )}
+  </nav>
+);
+
+
+// ============================================
+// HOME VIEW
+// ============================================
+
+const HomeView = ({ setView }) => (
+  <div className="animate-in max-w-4xl mx-auto mt-10 px-4 text-center">
+    <h1 className="text-4xl md:text-5xl font-extrabold text-brand-900 mb-6">
+      Comunidad Segura <span className="text-brand-600">ITGAM</span>
+    </h1>
+    <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
+      Plataforma oficial para la comunicación institucional y la gestión segura de reportes estudiantiles.
+    </p>
+    <div className="flex justify-center gap-4 flex-wrap">
+      <button onClick={() => setView('denuncia')} className="bg-brand-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-brand-800 transition shadow-lg">
+        Hacer Reporte
+      </button>
+      <button onClick={() => setView('avisos')} className="bg-white text-brand-900 border border-gray-300 px-8 py-3 rounded-xl font-bold hover:bg-gray-50 transition">
+        Ver Avisos
+      </button>
+    </div>
+    <div className="grid md:grid-cols-3 gap-6 mt-16 text-left">
+       <div className="bg-white p-6 rounded-lg shadow-sm border-t-4 border-brand-600">
+         <h3 className="font-bold text-lg mb-2">Anonimato</h3>
+         <p className="text-sm text-gray-500">Opción de proteger tu identidad en cualquier reporte.</p>
+       </div>
+       <div className="bg-white p-6 rounded-lg shadow-sm border-t-4 border-blue-400">
+         <h3 className="font-bold text-lg mb-2">Oficial</h3>
+         <p className="text-sm text-gray-500">Canal directo con las autoridades del plantel.</p>
+       </div>
+       <div className="bg-white p-6 rounded-lg shadow-sm border-t-4 border-green-500">
+         <h3 className="font-bold text-lg mb-2">Seguimiento</h3>
+         <p className="text-sm text-gray-500">Monitoreo de incidencias para una mejor resolución.</p>
+       </div>
+    </div>
+  </div>
+);
+
+// ============================================
+// FORM VIEW
+// ============================================
+
+// ============================================
+// FORM VIEW MEJORADO - ENFOQUE ESTUDIANTIL
+// ============================================
+
+const FormView = ({ setView }) => {
+  const [step, setStep] = useState(1);
+  const [formData, setFormData] = useState({ 
+    numControl: '',
+    type: 'Acoso', // Default: Acoso (lo más importante)
+    desc: '',
+    location: '',
+    evidence: ''
+  });
+  const [isAnon, setIsAnon] = useState(true);
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [folio, setFolio] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSending(true);
+    
+    try {
+      const result = await DataService.addReport({
+        ...formData,
+        isAnon
+      });
+      
+      // Generar folio solo si NO es anónimo
+      if (!isAnon && formData.numControl) {
+        const folioNumber = `ITGAM-${new Date().getFullYear()}-${formData.numControl}`;
+        setFolio(folioNumber);
+      }
+      setSent(true);
+      
+      setTimeout(() => {
+        setSent(false);
+        setFormData({ 
+          numControl: '',
+          type: 'Acoso',
+          desc: '',
+          location: '',
+          evidence: ''
+        });
+        setStep(1);
+        setView('home');
+      }, 6000);
+    } catch (error) {
+      alert('Error al enviar reporte. Por favor intenta de nuevo.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const nextStep = () => {
+    if (step === 1 && !isAnon && !formData.numControl) {
+      alert('Por favor ingresa tu número de control');
+      return;
+    }
+    if (step === 2 && !formData.desc) {
+      alert('Por favor describe tu reporte');
+      return;
+    }
+    if (step === 2 && formData.desc.length < 20) {
+      alert('Por favor proporciona más detalles (mínimo 20 caracteres)');
+      return;
+    }
+    setStep(step + 1);
+  };
+
+  const prevStep = () => setStep(step - 1);
+
+  const typeIcons = {
+    'Acoso': { icon: '⚠️', color: 'from-red-500 to-red-600', desc: 'Acoso escolar, bullying, hostigamiento' },
+    'Violencia': { icon: '🚨', color: 'from-orange-500 to-orange-600', desc: 'Violencia física o verbal' },
+    'Discriminación': { icon: '🤝', color: 'from-purple-500 to-purple-600', desc: 'Discriminación por cualquier motivo' },
+    'Infraestructura': { icon: '🏗️', color: 'from-blue-500 to-blue-600', desc: 'Instalaciones en mal estado' },
+    'Seguridad': { icon: '🔒', color: 'from-yellow-500 to-yellow-600', desc: 'Situaciones de riesgo o inseguridad' },
+    'Académico': { icon: '📚', color: 'from-green-500 to-green-600', desc: 'Problemas académicos o con docentes' },
+    'Otro': { icon: '📋', color: 'from-gray-500 to-gray-600', desc: 'Otro tipo de situación' }
+  };
+
+  // Pantalla de confirmación exitosa
+  if (sent) {
+    return (
+      <div className="animate-in max-w-2xl mx-auto mt-8 px-4 mb-8">
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-8 text-white text-center">
+            <div className="mx-auto w-20 h-20 bg-white rounded-full flex items-center justify-center mb-4">
+              <svg className="w-12 h-12 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h2 className="text-3xl font-bold mb-2">¡Reporte Recibido!</h2>
+            <p className="text-green-100">Tu reporte ha sido registrado de forma segura</p>
+          </div>
+          
+          <div className="p-8">
+            {!isAnon && folio && (
+              <div className="bg-gradient-to-br from-brand-50 to-blue-50 rounded-xl p-6 mb-6 border-2 border-brand-200">
+                <p className="text-sm text-gray-600 mb-2 text-center font-semibold">Tu folio de seguimiento:</p>
+                <p className="text-3xl font-bold text-brand-900 text-center tracking-wider mb-2">{folio}</p>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(folio);
+                    alert('Folio copiado al portapapeles');
+                  }}
+                  className="w-full mt-3 bg-white border-2 border-brand-300 text-brand-700 px-4 py-2 rounded-lg font-semibold hover:bg-brand-50 transition text-sm"
+                >
+                  📋 Copiar Folio
+                </button>
+                <p className="text-xs text-gray-500 mt-3 text-center">
+                  Guarda este número para consultar el estado de tu reporte
+                </p>
+              </div>
+            )}
+
+            {isAnon && (
+              <div className="bg-blue-50 rounded-xl p-6 mb-6 border-2 border-blue-200">
+                <div className="text-center">
+                  <div className="text-4xl mb-3">🔒</div>
+                  <h3 className="font-bold text-lg text-gray-800 mb-2">Reporte Anónimo</h3>
+                  <p className="text-sm text-gray-600">
+                    Tu identidad está completamente protegida. Las autoridades darán seguimiento sin revelar quién reportó.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-3 text-sm">
+              <div className="flex items-start gap-3 bg-green-50 p-3 rounded-lg">
+                <div className="text-green-600 mt-0.5 text-xl">✓</div>
+                <div>
+                  <p className="font-semibold text-gray-800">Reporte enviado a las autoridades</p>
+                  <p className="text-gray-600 text-xs">Tu reporte será atendido con la máxima prioridad</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 bg-blue-50 p-3 rounded-lg">
+                <div className="text-blue-600 mt-0.5 text-xl">✓</div>
+                <div>
+                  <p className="font-semibold text-gray-800">Confidencialidad garantizada</p>
+                  <p className="text-gray-600 text-xs">La información será tratada con absoluta discreción</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3 bg-purple-50 p-3 rounded-lg">
+                <div className="text-purple-600 mt-0.5 text-xl">✓</div>
+                <div>
+                  <p className="font-semibold text-gray-800">Seguimiento activo</p>
+                  <p className="text-gray-600 text-xs">El departamento correspondiente revisará tu caso en máximo 24 horas</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-gray-200">
+              <p className="text-center text-sm text-gray-600 mb-4">
+                <strong>¿Necesitas apoyo inmediato?</strong>
+              </p>
+              <div className="bg-red-50 border-2 border-red-200 rounded-lg p-4 text-center">
+                <p className="text-sm font-semibold text-red-800 mb-2">
+                  📞 Línea de Ayuda 24/7
+                </p>
+                <p className="text-2xl font-bold text-red-600">01-800-AYUDA</p>
+                <p className="text-xs text-red-700 mt-2">
+                  Si estás en peligro inmediato, marca el 911
+                </p>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setView('home')}
+              className="w-full mt-6 bg-brand-600 text-white px-6 py-4 rounded-xl font-bold hover:bg-brand-500 transition text-lg"
+            >
+              Volver al Inicio
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="animate-in max-w-3xl mx-auto mt-8 px-4 mb-8">
+      {/* Header con mensaje de apoyo */}
+      <div className="mb-6 text-center">
+        <h2 className="text-4xl font-bold text-brand-900 mb-3">Tu Voz es Importante</h2>
+        <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          Este es un espacio seguro para reportar cualquier situación que afecte tu bienestar o el de tus compañeros.
+        </p>
+        
+        {/* Barra de progreso */}
+        <div className="mt-6 flex items-center gap-2 max-w-md mx-auto">
+          <div className={`flex-1 h-2 rounded-full transition-all ${step >= 1 ? 'bg-brand-600' : 'bg-gray-200'}`}></div>
+          <div className={`flex-1 h-2 rounded-full transition-all ${step >= 2 ? 'bg-brand-600' : 'bg-gray-200'}`}></div>
+          <div className={`flex-1 h-2 rounded-full transition-all ${step >= 3 ? 'bg-brand-600' : 'bg-gray-200'}`}></div>
+        </div>
+        <div className="flex justify-between text-xs text-gray-500 mt-2 max-w-md mx-auto">
+          <span>Identidad</span>
+          <span>Detalles</span>
+          <span>Confirmación</span>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-2xl overflow-hidden border border-gray-100">
+        <div className={`bg-gradient-to-r ${
+          step === 1 ? 'from-blue-600 to-indigo-600' :
+          step === 2 ? 'from-purple-600 to-pink-600' :
+          'from-green-600 to-emerald-600'
+        } p-6 text-white transition-all`}>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 bg-white/20 rounded-xl flex items-center justify-center text-3xl backdrop-blur-sm">
+              {step === 1 && '👤'}
+              {step === 2 && '📝'}
+              {step === 3 && '✅'}
+            </div>
+            <div className="flex-1">
+              <h3 className="text-2xl font-bold mb-1">
+                {step === 1 && 'Paso 1: Tu Identidad'}
+                {step === 2 && 'Paso 2: ¿Qué Sucedió?'}
+                {step === 3 && 'Paso 3: Revisa y Confirma'}
+              </h3>
+              <p className="text-white/90 text-sm">
+                {step === 1 && 'Puedes elegir reportar de forma anónima o identificarte'}
+                {step === 2 && 'Comparte todos los detalles que consideres importantes'}
+                {step === 3 && 'Verifica que todo esté correcto antes de enviar'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-8">
+          {/* PASO 1: IDENTIDAD */}
+          {step === 1 && (
+            <div className="space-y-6 animate-in">
+              {/* Toggle Anónimo con mensaje especial para acoso */}
+              <div className="bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 p-6 rounded-xl border-2 border-red-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="text-3xl">🛡️</div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-lg text-gray-800">
+                      {isAnon ? 'Modo Anónimo Activado' : 'Modo Identificado'}
+                    </h4>
+                    <p className="text-sm text-gray-700">
+                      {isAnon 
+                        ? 'Nadie sabrá quién hizo este reporte. Tu seguridad es nuestra prioridad.' 
+                        : 'Recibirás seguimiento directo de tu reporte mediante tu número de control'}
+                    </p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setIsAnon(!isAnon)}
+                    className={`relative w-16 h-8 rounded-full transition-all ${
+                      isAnon ? 'bg-green-500' : 'bg-blue-500'
+                    } shadow-lg`}
+                  >
+                    <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform shadow ${
+                      isAnon ? 'left-1' : 'left-9'
+                    }`}></div>
+                  </button>
+                </div>
+
+                {!isAnon && (
+                  <div className="mt-4 animate-in">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Número de Control *
+                    </label>
+                    <input 
+                      required 
+                      type="text"
+                      maxLength="10"
+                      className="border-2 border-gray-300 p-4 rounded-xl w-full focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100 transition text-lg font-semibold" 
+                      placeholder="Ej: 20240001" 
+                      value={formData.numControl} 
+                      onChange={e => setFormData({...formData, numControl: e.target.value.toUpperCase()})} 
+                    />
+                    <p className="text-xs text-gray-500 mt-2">
+                      Tu número de control solo será usado para darte seguimiento, no se compartirá con nadie más
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Mensaje de apoyo */}
+              <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+                <p className="text-sm text-blue-800">
+                  <strong>💙 Recuerda:</strong> No estás solo/a. Este sistema está diseñado para protegerte y ayudarte. 
+                  Todos los reportes son tratados con la máxima seriedad y confidencialidad.
+                </p>
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="bg-brand-600 text-white px-10 py-4 rounded-xl font-bold hover:bg-brand-500 transition shadow-lg hover:shadow-xl text-lg"
+                >
+                  Continuar →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* PASO 2: DETALLES */}
+          {step === 2 && (
+            <div className="space-y-6 animate-in">
+              {/* Tipo de Reporte - ACOSO DESTACADO */}
+              <div>
+                <label className="block text-lg font-bold text-gray-800 mb-4">
+                  ¿Qué tipo de situación deseas reportar? *
+                </label>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {Object.entries(typeIcons).map(([type, data]) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setFormData({...formData, type})}
+                      className={`p-5 rounded-xl border-3 transition-all transform hover:scale-105 ${
+                        formData.type === type 
+                          ? `bg-gradient-to-br ${data.color} text-white border-transparent shadow-xl scale-105` 
+                          : 'border-gray-200 hover:border-gray-300 bg-white hover:shadow-md'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <span className={`text-5xl ${formData.type === type ? '' : 'grayscale'}`}>
+                          {data.icon}
+                        </span>
+                        <div className="text-left flex-1">
+                          <span className={`font-bold text-lg block mb-1 ${
+                            formData.type === type ? 'text-white' : 'text-gray-800'
+                          }`}>
+                            {type}
+                          </span>
+                          <span className={`text-xs ${
+                            formData.type === type ? 'text-white/90' : 'text-gray-500'
+                          }`}>
+                            {data.desc}
+                          </span>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Mensaje especial para acoso */}
+              {formData.type === 'Acoso' && (
+                <div className="bg-gradient-to-r from-red-50 to-orange-50 border-2 border-red-300 rounded-xl p-5 animate-in">
+                  <div className="flex gap-3">
+                    <div className="text-3xl">⚠️</div>
+                    <div>
+                      <h4 className="font-bold text-red-800 mb-2">Reportes de Acoso - Prioridad Alta</h4>
+                      <p className="text-sm text-red-700 mb-3">
+                        Los casos de acoso son tratados con máxima urgencia por el departamento de Orientación Educativa y Psicología.
+                      </p>
+                      <ul className="text-xs text-red-700 space-y-1">
+                        <li>• Tu reporte será atendido en menos de 24 horas</li>
+                        <li>• Se tomarán medidas inmediatas para protegerte</li>
+                        <li>• Contarás con apoyo psicológico si lo necesitas</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Ubicación */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  ¿Dónde ocurrió? (Opcional pero muy útil)
+                </label>
+                <input 
+                  className="border-2 border-gray-300 p-4 rounded-xl w-full focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100 transition" 
+                  placeholder="Ej: Edificio A, 2do piso, Laboratorio de Química" 
+                  value={formData.location} 
+                  onChange={e => setFormData({...formData, location: e.target.value})} 
+                />
+              </div>
+
+              {/* Descripción - MUY IMPORTANTE */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Cuéntanos qué sucedió *
+                </label>
+                <textarea 
+                  required 
+                  rows="6" 
+                  className="border-2 border-gray-300 p-4 rounded-xl w-full focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100 transition" 
+                  placeholder="Describe lo que pasó con el mayor detalle posible:
+- ¿Qué sucedió exactamente?
+- ¿Cuándo ocurrió? (fecha y hora aproximada)
+- ¿Quién estuvo involucrado? (sin mencionar nombres si prefieres)
+- ¿Hubo testigos?
+- ¿Es la primera vez que ocurre o ha pasado antes?
+
+Entre más detalles proporciones, mejor podremos ayudarte."
+                  value={formData.desc} 
+                  onChange={e => setFormData({...formData, desc: e.target.value})}
+                />
+                <div className="flex justify-between items-center mt-2">
+                  <p className={`text-xs ${formData.desc.length < 20 ? 'text-red-500' : 'text-gray-500'}`}>
+                    {formData.desc.length} caracteres {formData.desc.length < 20 && '(mínimo 20)'}
+                  </p>
+                  {formData.desc.length >= 50 && (
+                    <span className="text-xs text-green-600 font-semibold">✓ Muy buena descripción</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Evidencia */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">
+                  Evidencia (Foto o captura de pantalla) - Opcional
+                </label>
+                <input 
+                  type="url"
+                  className="border-2 border-gray-300 p-4 rounded-xl w-full focus:outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100 transition" 
+                  placeholder="https://i.imgur.com/ejemplo.jpg" 
+                  value={formData.evidence} 
+                  onChange={e => setFormData({...formData, evidence: e.target.value})} 
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 Si tienes fotos o capturas de pantalla, súbelas a <a href="https://imgur.com" target="_blank" className="text-brand-600 underline">Imgur</a> y pega el enlace aquí
+                </p>
+              </div>
+
+              <div className="flex justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="bg-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold hover:bg-gray-300 transition"
+                >
+                  ← Atrás
+                </button>
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  className="bg-brand-600 text-white px-10 py-4 rounded-xl font-bold hover:bg-brand-500 transition shadow-lg hover:shadow-xl"
+                >
+                  Continuar →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* PASO 3: CONFIRMACIÓN */}
+          {step === 3 && (
+            <div className="space-y-6 animate-in">
+              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-xl p-5">
+                <p className="text-sm text-yellow-800 font-bold flex items-center gap-2">
+                  👀 Revisa que todo esté correcto antes de enviar
+                </p>
+              </div>
+
+              {/* Resumen visual */}
+              <div className="space-y-4">
+                <div className={`bg-gradient-to-br ${typeIcons[formData.type].color} rounded-xl p-6 text-white shadow-lg`}>
+                  <div className="flex items-center gap-4">
+                    <span className="text-6xl">{typeIcons[formData.type].icon}</span>
+                    <div>
+                      <h4 className="font-bold text-2xl mb-1">{formData.type}</h4>
+                      <p className="text-white/90 text-sm">{typeIcons[formData.type].desc}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {formData.location && (
+                  <div className="bg-gray-50 rounded-xl p-5 border-2 border-gray-200">
+                    <h4 className="font-bold text-gray-700 mb-2 flex items-center gap-2">
+                      <span>📍</span> Ubicación
+                    </h4>
+                    <p className="text-gray-900">{formData.location}</p>
+                  </div>
+                )}
+
+                <div className="bg-gray-50 rounded-xl p-5 border-2 border-gray-200">
+                  <h4 className="font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <span>📝</span> Descripción del Incidente
+                  </h4>
+                  <p className="text-gray-900 whitespace-pre-wrap leading-relaxed">{formData.desc}</p>
+                </div>
+
+                {!isAnon && formData.numControl && (
+                  <div className="bg-blue-50 rounded-xl p-5 border-2 border-blue-200">
+                    <h4 className="font-bold text-gray-700 mb-2 flex items-center gap-2">
+                      <span>🎓</span> Información de Seguimiento
+                    </h4>
+                    <p className="text-gray-900">
+                      <strong>Número de Control:</strong> {formData.numControl}
+                    </p>
+                    <p className="text-xs text-gray-600 mt-2">
+                      Recibirás un folio para dar seguimiento a tu reporte
+                    </p>
+                  </div>
+                )}
+
+                {isAnon && (
+                  <div className="bg-green-50 rounded-xl p-5 border-2 border-green-200">
+                    <h4 className="font-bold text-gray-700 mb-2 flex items-center gap-2">
+                      <span>🔒</span> Modo Anónimo
+                    </h4>
+                    <p className="text-gray-900 text-sm">
+                      Este reporte será completamente anónimo. Nadie sabrá quién lo hizo.
+                    </p>
+                  </div>
+                )}
+
+                {formData.evidence && (
+                  <div className="bg-gray-50 rounded-xl p-5 border-2 border-gray-200">
+                    <h4 className="font-bold text-gray-700 mb-3 flex items-center gap-2">
+                      <span>📸</span> Evidencia Adjunta
+                    </h4>
+                    <img 
+                      src={formData.evidence} 
+                      alt="Evidencia" 
+                      className="max-w-full h-64 object-contain rounded-lg border-2 border-gray-300 bg-white"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/400x200?text=Error+al+cargar+imagen';
+                        e.target.className = 'max-w-full h-64 object-contain rounded-lg border-2 border-red-300';
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={prevStep}
+                  className="bg-gray-200 text-gray-700 px-8 py-4 rounded-xl font-bold hover:bg-gray-300 transition"
+                >
+                  ← Modificar
+                </button>
+                <button
+                  type="submit"
+                  disabled={sending}
+                  className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white px-10 py-4 rounded-xl font-bold hover:from-green-500 hover:to-emerald-500 transition shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+                >
+                  {sending ? (
+                    <span className="flex items-center justify-center gap-3">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                      Enviando de forma segura...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      <span>✓</span> Enviar Reporte
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+        </form>
+      </div>
+
+      {/* Información de contacto de emergencia */}
+      <div className="mt-6 grid md:grid-cols-2 gap-4">
+        <div className="bg-red-50 rounded-xl p-5 border-2 border-red-200">
+          <h4 className="font-bold text-red-800 mb-2 flex items-center gap-2">
+            <span>🚨</span> ¿Emergencia?
+          </h4>
+          <p className="text-sm text-red-700 mb-2">
+            Si estás en peligro inmediato, no uses este formulario.
+          </p>
+          <p className="text-2xl font-bold text-red-600">Llama al 911</p>
+        </div>
+        
+        <div className="bg-blue-50 rounded-xl p-5 border-2 border-blue-200">
+        <h4 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
+        <span>💬</span> Apoyo Psicológico
+        </h4>
+        <p className="text-sm text-blue-700 mb-2">
+          Departamento de Orientación Educativa
+         </p>
+        <p className="text-lg font-bold text-blue-600">Edificio A</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ============================================
+// AVISOS VIEW
+// ============================================
+
+const AvisosView = () => {
+  const [avisos, setAvisos] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const unsubscribe = DataService.getAvisos((data) => {
+      setAvisos(data);
+      setLoading(false);
+    });
+    return () => unsubscribe && unsubscribe();
+  }, []);
+
+
+  const typeColors = {
+    'General': 'bg-blue-500',
+    'Sistemas': 'bg-purple-500',
+    'Comunidad': 'bg-green-500',
+    'Académico': 'bg-yellow-500',
+    'Urgente': 'bg-red-500'
+  };
+
+  if (loading) {
+    return (
+      <div className="animate-in max-w-5xl mx-auto mt-8 px-4 mb-8">
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+          <p className="mt-4 text-gray-500">Cargando avisos...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="animate-in max-w-5xl mx-auto mt-8 px-4 mb-8">
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-brand-900 mb-2">Avisos Oficiales</h2>
+        <p className="text-gray-600">Mantente informado sobre las novedades del instituto</p>
+      </div>
+
+      {avisos.length === 0 ? (
+        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+          <div className="text-gray-400 mb-4">
+            <Icon path={ICONS.bell} />
+          </div>
+          <p className="text-gray-500">No hay avisos disponibles en este momento</p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {avisos.map(aviso => (
+            <div key={aviso.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+              {aviso.imageUrl && (
+                <div className="h-48 overflow-hidden bg-gray-100">
+                  <img 
+                    src={aviso.imageUrl} 
+                    alt={aviso.title}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                    onError={(e) => e.target.style.display = 'none'}
+                  />
+                </div>
+              )}
+              
+              <div className="p-5">
+                <div className="flex justify-between items-start mb-3">
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full text-white ${typeColors[aviso.type] || 'bg-gray-500'}`}>
+                    {aviso.type}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {aviso.date ? new Date(aviso.date.seconds * 1000).toLocaleDateString('es-MX') : 'Reciente'}
+                  </span>
+                </div>
+                
+                <h3 className="font-bold text-lg text-gray-800 mb-2 line-clamp-2">
+                  {aviso.title}
+                </h3>
+                
+                <p className="text-gray-600 text-sm line-clamp-3">
+                  {aviso.body}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================
+// ADMIN VIEW (código continúa en siguiente mensaje por límite de caracteres)
+// ============================================
+
+const AdminView = () => {
+  const [adminPass, setAdminPass] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [activeTab, setActiveTab] = useState('reportes');
+  const [reports, setReports] = useState([]);
+  const [avisos, setAvisos] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const [showAvisoForm, setShowAvisoForm] = useState(false);
+  const [editingAviso, setEditingAviso] = useState(null);
+  const [avisoForm, setAvisoForm] = useState({
+    title: '',
+    type: 'General',
+    body: '',
+    imageUrl: ''
+  });
+
+  useEffect(() => {
+    let unsubscribe;
+    if (isAdmin) {
+      setLoading(true);
+      if (activeTab === 'reportes') {
+        unsubscribe = DataService.getReports((data) => {
+          setReports(data);
+          setLoading(false);
+        });
+      } else if (activeTab === 'avisos') {
+        unsubscribe = DataService.getAllAvisos((data) => {
+          setAvisos(data);
+          setLoading(false);
+        });
+      }
+    }
+    return () => unsubscribe && unsubscribe();
+  }, [isAdmin, activeTab]);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    if (adminPass === 'admin123') {
+      setIsAdmin(true);
+    } else {
+      alert('Contraseña incorrecta');
+    }
+  };
+
+  const handleResolve = async (id) => {
+    try {
+      await DataService.updateStatus(id, 'Resuelto');
+    } catch (error) {
+      alert('Error al actualizar');
+    }
+  };
+
+  const handleToggleAviso = async (id, currentStatus) => {
+    try {
+      await DataService.toggleAvisoStatus(id, currentStatus);
+    } catch (error) {
+      alert('Error al cambiar estado');
+    }
+  };
+
+  const handleDeleteAviso = async (id) => {
+    if (confirm('¿Seguro que deseas eliminar este aviso?')) {
+      try {
+        await DataService.deleteAviso(id);
+      } catch (error) {
+        alert('Error al eliminar');
+      }
+    }
+  };
+
+  const handleSaveAviso = async (e) => {
+    e.preventDefault();
+    
+    try {
+      if (editingAviso) {
+        await DataService.updateAviso(editingAviso.id, avisoForm);
+      } else {
+        await DataService.addAviso(avisoForm);
+      }
+      resetAvisoForm();
+    } catch (error) {
+      alert('Error al guardar aviso');
+    }
+  };
+
+  const resetAvisoForm = () => {
+    setAvisoForm({ title: '', type: 'General', body: '', imageUrl: '' });
+    setEditingAviso(null);
+    setShowAvisoForm(false);
+  };
+
+  const startEdit = (aviso) => {
+    setEditingAviso(aviso);
+    setAvisoForm({
+      title: aviso.title,
+      type: aviso.type,
+      body: aviso.body,
+      imageUrl: aviso.imageUrl || ''
+    });
+    setShowAvisoForm(true);
+  };
+
+  if (!isAdmin) {
+    return (
+      <div className="animate-in max-w-sm mx-auto mt-20 px-4 mb-8">
+        <div className="bg-white p-8 rounded-xl shadow-lg text-center">
+          <div className="bg-brand-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div className="text-brand-600"><Icon path={ICONS.lock} /></div>
+          </div>
+          <h2 className="font-bold text-2xl mb-2 text-brand-900">Panel de Administración</h2>
+          <p className="text-gray-500 text-sm mb-6">Solo personal autorizado</p>
+          <form onSubmit={handleLogin}>
+            <input 
+              type="password" 
+              placeholder="Contraseña" 
+              className="border border-gray-300 p-3 rounded-lg w-full mb-4 focus:outline-none focus:border-brand-500" 
+              value={adminPass} 
+              onChange={e => setAdminPass(e.target.value)}
+              required
+            />
+            <button type="submit" className="w-full bg-brand-900 text-white py-3 rounded-lg font-bold hover:bg-brand-800 transition">
+              Iniciar Sesión
+            </button>
+            <p className="text-xs text-gray-400 mt-3">Clave demo: admin123</p>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="animate-in max-w-6xl mx-auto mt-8 px-4 mb-8">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-3xl font-bold text-brand-900">Panel de Administración</h2>
+          <p className="text-gray-500 text-sm mt-1">Gestiona reportes y avisos del sistema</p>
+        </div>
+        <button 
+          onClick={() => {
+            setIsAdmin(false);
+            setAdminPass('');
+          }} 
+          className="text-red-600 text-sm font-semibold hover:text-red-800 flex items-center gap-2 bg-red-50 px-4 py-2 rounded-lg"
+        >
+          Cerrar Sesión
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm mb-6 p-1 flex gap-2">
+        <button
+          onClick={() => setActiveTab('reportes')}
+          className={`flex-1 py-3 px-6 rounded-md font-semibold transition ${
+            activeTab === 'reportes' 
+              ? 'bg-brand-900 text-white' 
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          📋 Reportes
+        </button>
+        <button
+          onClick={() => setActiveTab('avisos')}
+          className={`flex-1 py-3 px-6 rounded-md font-semibold transition ${
+            activeTab === 'avisos' 
+              ? 'bg-brand-900 text-white' 
+              : 'text-gray-600 hover:bg-gray-100'
+          }`}
+        >
+          📢 Avisos
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600 mb-4"></div>
+          <p className="text-gray-500">Cargando...</p>
+        </div>
+      ) : (
+        <>
+          {activeTab === 'reportes' && (
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-gray-700 font-bold border-b">
+                    <tr>
+                      <th className="p-4 text-left">Fecha</th>
+                      <th className="p-4 text-left">Tipo</th>
+                      <th className="p-4 text-left">Descripción</th>
+                      <th className="p-4 text-left">Estado</th>
+                      <th className="p-4 text-left">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reports.length === 0 ? (
+                      <tr>
+                        <td colSpan="5" className="p-12 text-center text-gray-400">
+                          No hay reportes registrados
+                        </td>
+                      </tr>
+                    ) : (
+                      reports.map(r => (
+                        <tr key={r.id} className="border-b hover:bg-gray-50">
+                          <td className="p-4 whitespace-nowrap">
+                            {r.date ? new Date(r.date).toLocaleDateString('es-MX') : 'N/A'}
+                          </td>
+                          <td className="p-4">
+                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">
+                              {r.type}
+                            </span>
+                          </td>
+                          <td className="p-4 max-w-md truncate">{r.desc}</td>
+                          <td className="p-4">
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                              r.status === 'Resuelto' 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {r.status || 'Pendiente'}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            {r.status !== 'Resuelto' && (
+                              <button 
+                                onClick={() => handleResolve(r.id)} 
+                                className="text-green-600 font-bold hover:text-green-800 text-sm"
+                              >
+                                ✓ Resolver
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'avisos' && (
+            <div>
+              <div className="mb-4">
+                <button
+                  onClick={() => setShowAvisoForm(!showAvisoForm)}
+                  className="bg-brand-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-brand-500 flex items-center gap-2"
+                >
+                  <span className="text-xl">+</span> 
+                  {showAvisoForm ? 'Cancelar' : 'Crear Nuevo Aviso'}
+                </button>
+              </div>
+
+              {showAvisoForm && (
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+                  <h3 className="text-xl font-bold text-brand-900 mb-4">
+                    {editingAviso ? 'Editar Aviso' : 'Nuevo Aviso'}
+                  </h3>
+                  
+                  <form onSubmit={handleSaveAviso} className="space-y-4">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Título del aviso"
+                      className="border p-3 rounded-lg w-full"
+                      value={avisoForm.title}
+                      onChange={e => setAvisoForm({...avisoForm, title: e.target.value})}
+                    />
+
+                    <select
+                      className="border p-3 rounded-lg w-full bg-white"
+                      value={avisoForm.type}
+                      onChange={e => setAvisoForm({...avisoForm, type: e.target.value})}
+                    >
+                      <option>General</option>
+                      <option>Sistemas</option>
+                      <option>Comunidad</option>
+                      <option>Académico</option>
+                      <option>Urgente</option>
+                    </select>
+
+                    <textarea
+                      required
+                      rows="3"
+                      placeholder="Descripción"
+                      className="border p-3 rounded-lg w-full"
+                      value={avisoForm.body}
+                      onChange={e => setAvisoForm({...avisoForm, body: e.target.value})}
+                    />
+
+                    <div>
+                      <input
+                        type="url"
+                        placeholder="URL de imagen (Google Drive)"
+                        className="border p-3 rounded-lg w-full"
+                        value={avisoForm.imageUrl}
+                        onChange={e => setAvisoForm({...avisoForm, imageUrl: e.target.value})}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        💡 Formato: https://drive.google.com/uc?id=TU_ID
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="submit"
+                        className="bg-brand-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-brand-500 flex-1"
+                      >
+                        {editingAviso ? 'Actualizar' : 'Crear'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={resetAvisoForm}
+                        className="bg-gray-200 px-6 py-3 rounded-lg font-bold hover:bg-gray-300"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                {avisos.length === 0 ? (
+                  <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+                    <p className="text-gray-500">No hay avisos creados</p>
+                  </div>
+                ) : (
+                  avisos.map(aviso => (
+                    <div key={aviso.id} className="bg-white rounded-lg shadow-sm p-5">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="font-bold text-lg">{aviso.title}</h4>
+                          <span className="text-xs bg-gray-100 px-2 py-1 rounded">{aviso.type}</span>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          aviso.active ? 'bg-green-100 text-green-800' : 'bg-gray-100'
+                        }`}>
+                          {aviso.active ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <p className="text-gray-600 text-sm mb-3">{aviso.body}</p>
+                      
+                      <div className="flex gap-2 flex-wrap">
+                        <button
+                          onClick={() => startEdit(aviso)}
+                          className="text-blue-600 text-sm font-semibold"
+                        >
+                          ✏️ Editar
+                        </button>
+                        <button
+                          onClick={() => handleToggleAviso(aviso.id, aviso.active)}
+                          className="text-yellow-600 text-sm font-semibold"
+                        >
+                          {aviso.active ? '🔴 Desactivar' : '🟢 Activar'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAviso(aviso.id)}
+                          className="text-red-600 text-sm font-semibold"
+                        >
+                          🗑️ Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+// ============================================
+// APP PRINCIPAL
+// ============================================
+
+function App() {
+  const [view, setView] = useState('home');
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      <NavBar view={view} setView={setView} menuOpen={menuOpen} setMenuOpen={setMenuOpen} />
+      <div className="flex-grow pb-10">
+        {view === 'home' && <HomeView setView={setView} />}
+        {view === 'denuncia' && <FormView setView={setView} />}
+        {view === 'avisos' && <AvisosView />}
+        {view === 'admin' && <AdminView />}
+      </div>
+      <footer className="text-center py-6 text-gray-400 text-xs bg-brand-900 text-white">
+        © 2025 LibertITGAM | Versión Segura
+      </footer>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+
+</body>
+</html>
